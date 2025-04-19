@@ -1,0 +1,38 @@
+name: Auto Sync with u14app/deep-research 🚀
+on:
+  schedule:
+    # 北京时间每两天上午8点 = UTC时间0点（+8小时）
+    - cron: '0 0 */2 * *' 
+  workflow_dispatch: # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出当前分支（${{ github.ref_name }}）
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔗 绑定源仓库（固定为u14app/deep-research）
+        run: |
+          git remote add upstream https://github.com/u14app/deep-research.git
+          git remote -v # 验证远程仓库（需显示upstream的fetch/push地址）
+
+      - name: 🔄 拉取最新代码（含分支清理）
+        run: |
+          git fetch upstream --prune # --prune删除源已删除的分支
+          git checkout ${{ github.ref_name }} # 切换到当前分支（如main）
+          
+      - name: 设置Git用户信息
+        run: |
+          git config --global user.email "luojeff23@gmail.com"
+          git config --global user.name "luojeff23"
+          
+      - name: 🔀 智能变基并推送（含本地改动保护）
+        env:
+          GITHUB_PAT: ${{ secrets.PERSONAL_ACCESS_TOKEN }} # 需提前配置
+        run: |
+          git rebase upstream/${{ github.ref_name }} --autostash # 自动暂存本地未提交改动
+          git push origin ${{ github.ref_name }} --force-with-lease # 安全强制推送（避免覆盖他人提交）
